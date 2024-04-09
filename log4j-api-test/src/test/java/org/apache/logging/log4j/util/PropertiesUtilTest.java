@@ -23,6 +23,7 @@ import static java.time.temporal.ChronoUnit.MILLIS;
 import static java.time.temporal.ChronoUnit.MINUTES;
 import static java.time.temporal.ChronoUnit.NANOS;
 import static java.time.temporal.ChronoUnit.SECONDS;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -37,7 +38,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Stream;
-import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.ResourceAccessMode;
@@ -133,7 +133,7 @@ class PropertiesUtilTest {
     @ParameterizedTest
     @MethodSource
     void should_properly_parse_duration(final Duration expected, final CharSequence value) {
-        Assertions.assertThat(PropertiesUtil.parseDuration(value)).isEqualTo(expected);
+        assertThat(PropertiesUtil.parseDuration(value)).isEqualTo(expected);
     }
 
     static List<String> should_throw_on_invalid_duration() {
@@ -191,20 +191,20 @@ class PropertiesUtilTest {
     }
 
     @Test
-    @ResourceLock(Resources.SYSTEM_PROPERTIES)
+    @ResourceLock(value = Resources.SYSTEM_PROPERTIES, mode = ResourceAccessMode.READ)
     @Issue("https://github.com/spring-projects/spring-boot/issues/33450")
-    void testBadPropertysource() {
-        final String key1 = "testKey";
-        System.getProperties().put(key1, "test");
-        final PropertiesUtil util = new PropertiesUtil(new Properties());
+    void testBadPropertySource() {
+        final String key = "testKey";
+        final Properties props = new Properties();
+        props.put(key, "test");
+        final PropertiesUtil util = new PropertiesUtil(props);
         final ErrorPropertySource source = new ErrorPropertySource();
         util.addPropertySource(source);
         try {
-            assertEquals("test", util.getStringProperty(key1));
+            assertEquals("test", util.getStringProperty(key));
             assertTrue(source.exceptionThrown);
         } finally {
             util.removePropertySource(source);
-            System.getProperties().remove(key1);
         }
     }
 
@@ -250,6 +250,21 @@ class PropertiesUtilTest {
         props.setProperty(correct, correct);
         final PropertiesUtil util = new PropertiesUtil(props);
         assertEquals(correct, util.getStringProperty(correct));
+    }
+
+    @Test
+    void should_support_multiple_sources_with_same_priority() {
+        final int priority = 2003;
+        final String key1 = "propertySource1";
+        final Properties props1 = new Properties();
+        props1.put(key1, "props1");
+        final String key2 = "propertySource2";
+        final Properties props2 = new Properties();
+        props2.put(key2, "props2");
+        final PropertiesUtil util = new PropertiesUtil(new PropertiesPropertySource(props1, priority));
+        util.addPropertySource(new PropertiesPropertySource(props2, priority));
+        assertThat(util.getStringProperty(key1)).isEqualTo("props1");
+        assertThat(util.getStringProperty(key2)).isEqualTo("props2");
     }
 
     private static class ErrorPropertySource implements PropertySource {
