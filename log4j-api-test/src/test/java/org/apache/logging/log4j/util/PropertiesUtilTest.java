@@ -46,6 +46,7 @@ import org.junit.jupiter.api.parallel.Resources;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junitpioneer.jupiter.Issue;
 import org.junitpioneer.jupiter.ReadsSystemProperty;
 
 class PropertiesUtilTest {
@@ -131,7 +132,7 @@ class PropertiesUtilTest {
 
     @ParameterizedTest
     @MethodSource
-    void should_properly_parse_duration(final Duration expected, final String value) {
+    void should_properly_parse_duration(final Duration expected, final CharSequence value) {
         Assertions.assertThat(PropertiesUtil.parseDuration(value)).isEqualTo(expected);
     }
 
@@ -143,7 +144,7 @@ class PropertiesUtilTest {
 
     @ParameterizedTest
     @MethodSource
-    void should_throw_on_invalid_duration(final String value) {
+    void should_throw_on_invalid_duration(final CharSequence value) {
         assertThrows(IllegalArgumentException.class, () -> PropertiesUtil.parseDuration(value));
     }
 
@@ -183,7 +184,7 @@ class PropertiesUtilTest {
     @ResourceLock(value = Resources.SYSTEM_PROPERTIES, mode = ResourceAccessMode.READ)
     void testPublish() {
         final Properties props = new Properties();
-        final PropertiesUtil util = new PropertiesUtil(props);
+        new PropertiesUtil(props);
         final String value = System.getProperty("Application");
         assertNotNull(value, "System property was not published");
         assertEquals("Log4j", value);
@@ -191,11 +192,12 @@ class PropertiesUtilTest {
 
     @Test
     @ResourceLock(Resources.SYSTEM_PROPERTIES)
+    @Issue("https://github.com/spring-projects/spring-boot/issues/33450")
     void testBadPropertysource() {
         final String key1 = "testKey";
         System.getProperties().put(key1, "test");
         final PropertiesUtil util = new PropertiesUtil(new Properties());
-        ErrorPropertySource source = new ErrorPropertySource();
+        final ErrorPropertySource source = new ErrorPropertySource();
         util.addPropertySource(source);
         try {
             assertEquals("test", util.getStringProperty(key1));
@@ -250,7 +252,7 @@ class PropertiesUtilTest {
         assertEquals(correct, util.getStringProperty(correct));
     }
 
-    private class ErrorPropertySource implements PropertySource {
+    private static class ErrorPropertySource implements PropertySource {
         public boolean exceptionThrown = false;
 
         @Override
@@ -259,15 +261,15 @@ class PropertiesUtilTest {
         }
 
         @Override
-        public String getProperty(String key) {
+        public String getProperty(final String key) {
             exceptionThrown = true;
-            throw new InstantiationError("Test");
+            throw new IllegalStateException("Test");
         }
 
         @Override
-        public boolean containsProperty(String key) {
+        public boolean containsProperty(final String key) {
             exceptionThrown = true;
-            throw new InstantiationError("Test");
+            throw new IllegalStateException("Test");
         }
     }
 }
