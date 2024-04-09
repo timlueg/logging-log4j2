@@ -139,7 +139,7 @@ public final class PropertiesUtil {
     }
 
     /**
-     * Allows a {@link PropertySource} to be added after PropertiesUtil has been created.
+     * Allows a {@link PropertySource} to be added after {@code PropertiesUtil} has been created.
      * @param propertySource the {@code PropertySource} to add.
      * @since 2.19.0
      */
@@ -533,11 +533,7 @@ public final class PropertiesUtil {
             reload();
         }
 
-        /**
-         * Allow a PropertySource to be added.
-         * @param propertySource The PropertySource to add.
-         */
-        public void addPropertySource(final PropertySource propertySource) {
+        private void addPropertySource(final PropertySource propertySource) {
             sources.add(propertySource);
         }
 
@@ -597,7 +593,8 @@ public final class PropertiesUtil {
         private boolean sourceContainsProperty(final PropertySource source, final String key) {
             try {
                 return source.containsProperty(key);
-            } catch (final Throwable ex) {
+            } catch (final Exception e) {
+                LOGGER.warn("Failed to retrieve Log4j property {} from property source {}.", key, source, e);
                 return false;
             }
         }
@@ -605,7 +602,8 @@ public final class PropertiesUtil {
         private String sourceGetProperty(final PropertySource source, final String key) {
             try {
                 return source.getProperty(key);
-            } catch (final Throwable ex) {
+            } catch (final Exception e) {
+                LOGGER.warn("Failed to retrieve Log4j property {} from property source {}.", key, source, e);
                 return null;
             }
         }
