@@ -43,7 +43,7 @@ class ThreadContextMapTest {
         props.setProperty("log4j2.isThreadContextMapInheritable", "true");
         final PropertiesUtil util = new PropertiesUtil(props);
         return Stream.of(
-                new DefaultThreadContextMap(true, util),
+                new DefaultThreadContextMap(util),
                 new CopyOnWriteSortedArrayThreadContextMap(util),
                 new GarbageFreeSortedArrayThreadContextMap(util));
     }

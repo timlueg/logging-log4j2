@@ -30,7 +30,6 @@ import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.apache.logging.log4j.core.layout.PatternLayout;
-import org.apache.logging.log4j.internal.map.StringArrayThreadContextMap;
 import org.apache.logging.log4j.perf.appender.StringAppender;
 import org.apache.logging.log4j.spi.CopyOnWriteOpenHashMapThreadContextMap;
 import org.apache.logging.log4j.spi.DefaultThreadContextMap;
@@ -92,7 +91,6 @@ public class ThreadContextVsScopedContextBenchmark {
     private static final Logger LOGGER = LogManager.getLogger(ThreadContextVsScopedContextBenchmark.class);
 
     private static final String DEFAULT_CONTEXT_MAP = "Default";
-    private static final String STRING_ARRAY_MAP = "StringArray";
     private static final String COPY_OPENHASH_MAP = "CopyOpenHash";
     private static final String COPY_ARRAY_MAP = "CopySortedArray";
     private static final String NO_GC_OPENHASH_MAP = "NoGcOpenHash";
@@ -101,7 +99,6 @@ public class ThreadContextVsScopedContextBenchmark {
 
     static {
         IMPLEMENTATIONS.put(DEFAULT_CONTEXT_MAP, DefaultThreadContextMap.class);
-        IMPLEMENTATIONS.put(STRING_ARRAY_MAP, StringArrayThreadContextMap.class);
         IMPLEMENTATIONS.put(COPY_OPENHASH_MAP, CopyOnWriteOpenHashMapThreadContextMap.class);
         IMPLEMENTATIONS.put(
                 COPY_ARRAY_MAP,
