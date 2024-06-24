@@ -228,10 +228,10 @@ public class Provider {
      * @since 2.24.0
      */
     public LoggerContextFactory getLoggerContextFactory() {
-        final Class<?> implementation = loadLoggerContextFactory();
+        final Class<? extends LoggerContextFactory> implementation = loadLoggerContextFactory();
         if (implementation != null) {
             try {
-                return LoaderUtil.newInstanceOf(implementation.asSubclass(LoggerContextFactory.class));
+                return LoaderUtil.newInstanceOf(implementation);
             } catch (final ReflectiveOperationException e) {
                 LOGGER.error("Failed to instantiate logger context factory {}.", implementation.getName(), e);
             }
@@ -259,13 +259,11 @@ public class Provider {
         if (threadContextMapClass != null) {
             return threadContextMapClass;
         }
-        if (threadContextMap == null) {
-            return null;
-        }
+        final String threadContextMap = getThreadContextMap();
         final ClassLoader loader = classLoader.get();
         // Support for deprecated {@code META-INF/log4j-provider.properties} format.
         // In the remaining cases {@code loader == null}.
-        if (loader == null) {
+        if (loader == null || threadContextMap == null) {
             return null;
         }
         try {
@@ -276,7 +274,7 @@ public class Provider {
                 LOGGER.error(
                         "Class {} specified in {} does not extend {}",
                         threadContextMap,
-                        url,
+                        getUrl(),
                         ThreadContextMap.class.getName());
             }
         } catch (final Exception e) {
@@ -290,6 +288,14 @@ public class Provider {
      * @since 2.24.0
      */
     public ThreadContextMap getThreadContextMapInstance() {
+        final Class<? extends ThreadContextMap> implementation = loadThreadContextMap();
+        if (implementation != null) {
+            try {
+                return LoaderUtil.newInstanceOf(implementation);
+            } catch (final ReflectiveOperationException e) {
+                LOGGER.error("Failed to instantiate logger context factory {}.", implementation.getName(), e);
+            }
+        }
         final PropertiesUtil props = PropertiesUtil.getProperties();
         return props.getBooleanProperty(DISABLE_CONTEXT_MAP) || props.getBooleanProperty(DISABLE_THREAD_CONTEXT)
                 ? NoOpThreadContextMap.INSTANCE
