@@ -38,7 +38,7 @@ import org.apache.logging.log4j.util.TriConsumer;
  *      linearly with the current map size, and callers are advised to minimize this work.
  * </p>
  */
-public class DefaultThreadContextMap implements ThreadContextMap, ReadOnlyStringMap {
+public class DefaultThreadContextMap implements ThreadContextMap, ReadOnlyStringMap, CopyOnWrite {
     private static final long serialVersionUID = -2635197170958057849L;
 
     /**

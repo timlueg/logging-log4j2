@@ -295,15 +295,9 @@ public class Provider {
             return NoOpThreadContextMap.INSTANCE;
         }
         final String threadContextMap = getThreadContextMap();
-        if (threadContextMap != null) {
-            switch (threadContextMap) {
-                case "org.apache.logging.log4j.spi.GarbageFreeSortedArrayThreadContextMap":
-                    return new GarbageFreeSortedArrayThreadContextMap();
-                case "org.apache.logging.log4j.spi.CopyOnWriteSortedArrayThreadContextMap":
-                    return new CopyOnWriteSortedArrayThreadContextMap();
-            }
-        }
-        return new DefaultThreadContextMap();
+        return "org.apache.logging.log4j.spi.GarbageFreeSortedArrayThreadContextMap".equals(threadContextMap)
+                ? new GarbageFreeSortedArrayThreadContextMap()
+                : new DefaultThreadContextMap();
     }
 
     /**

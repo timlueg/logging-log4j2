@@ -32,20 +32,14 @@ class ThreadContextMapTest {
     private static final String KEY = "key";
 
     static Stream<ThreadContextMap> defaultMaps() {
-        return Stream.of(
-                new DefaultThreadContextMap(),
-                new CopyOnWriteSortedArrayThreadContextMap(),
-                new GarbageFreeSortedArrayThreadContextMap());
+        return Stream.of(new DefaultThreadContextMap(), new GarbageFreeSortedArrayThreadContextMap());
     }
 
     static Stream<ThreadContextMap> inheritableMaps() {
         final Properties props = new Properties();
         props.setProperty("log4j2.isThreadContextMapInheritable", "true");
         final PropertiesUtil util = new PropertiesUtil(props);
-        return Stream.of(
-                new DefaultThreadContextMap(util),
-                new CopyOnWriteSortedArrayThreadContextMap(util),
-                new GarbageFreeSortedArrayThreadContextMap(util));
+        return Stream.of(new DefaultThreadContextMap(util), new GarbageFreeSortedArrayThreadContextMap(util));
     }
 
     @ParameterizedTest
