@@ -20,6 +20,7 @@ import aQute.bnd.annotation.Resolution;
 import aQute.bnd.annotation.spi.ServiceConsumer;
 import aQute.bnd.annotation.spi.ServiceProvider;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.core.context.internal.GarbageFreeSortedArrayThreadContextMap;
 import org.apache.logging.log4j.spi.DefaultThreadContextMap;
 import org.apache.logging.log4j.spi.LoggerContextFactory;
 import org.apache.logging.log4j.spi.NoOpThreadContextMap;
@@ -27,12 +28,10 @@ import org.apache.logging.log4j.spi.Provider;
 import org.apache.logging.log4j.spi.ScopedContextProvider;
 import org.apache.logging.log4j.spi.ThreadContextMap;
 import org.apache.logging.log4j.status.StatusLogger;
-import org.apache.logging.log4j.util.Constants;
 import org.apache.logging.log4j.util.Lazy;
 import org.apache.logging.log4j.util.LoaderUtil;
 import org.apache.logging.log4j.util.PropertiesUtil;
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Binding for the Log4j API.
@@ -64,15 +63,6 @@ public class Log4jProvider extends Provider {
     private static final String WEB_APP_CONTEXT_MAP = "WebApp";
 
     /**
-     * Constant used to select a copy-on-write implementation of {@link ThreadContextMap}.
-     * <p>
-     *     <strong>Warning:</strong> the value of this constant does not point to a concrete class name.
-     * </p>
-     * @see #getThreadContextMap
-     */
-    private static final String COPY_ON_WRITE_CONTEXT_MAP = "CopyOnWrite";
-
-    /**
      * Constant used to select a garbage-free implementation of {@link ThreadContextMap}.
      * <p>
      *     This implementation must ensure that common operations don't create new object instances. The drawback is
@@ -94,9 +84,7 @@ public class Log4jProvider extends Provider {
     // Name of the context map implementations
     private static final String WEB_APP_CLASS_NAME = "org.apache.logging.log4j.spi.DefaultThreadContextMap";
     private static final String GARBAGE_FREE_CLASS_NAME =
-            "org.apache.logging.log4j.spi.GarbageFreeSortedArrayThreadContextMap";
-    private static final String COPY_ON_WRITE_CLASS_NAME =
-            "org.apache.logging.log4j.spi.CopyOnWriteSortedArrayThreadContextMap";
+            "org.apache.logging.log4j.core.context.internal.GarbageFreeSortedArrayThreadContextMap";
 
     private static final Logger LOGGER = StatusLogger.getLogger();
 
@@ -126,13 +114,9 @@ public class Log4jProvider extends Provider {
         String threadContextMapClass = props.getStringProperty(THREAD_CONTEXT_MAP_PROPERTY);
         // Default based on properties
         if (threadContextMapClass == null) {
-            if (props.getBooleanProperty(GC_FREE_THREAD_CONTEXT_PROPERTY)) {
-                threadContextMapClass = GARBAGE_FREE_CONTEXT_MAP;
-            } else if (Constants.ENABLE_THREADLOCALS) {
-                threadContextMapClass = COPY_ON_WRITE_CONTEXT_MAP;
-            } else {
-                threadContextMapClass = WEB_APP_CONTEXT_MAP;
-            }
+            threadContextMapClass = props.getBooleanProperty(GC_FREE_THREAD_CONTEXT_PROPERTY)
+                    ? GARBAGE_FREE_CONTEXT_MAP
+                    : WEB_APP_CONTEXT_MAP;
         }
         /*
          * The constructors are called explicitly to improve GraalVM support.
@@ -146,11 +130,11 @@ public class Log4jProvider extends Provider {
             case WEB_APP_CONTEXT_MAP:
             case WEB_APP_CLASS_NAME:
                 return new DefaultThreadContextMap();
-            case GARBAGE_FREE_CONTEXT_MAP:
+                // Old FQCN of the garbage-free context map
             case "org.apache.logging.log4j.spi.GarbageFreeSortedArrayThreadContextMap":
-            case COPY_ON_WRITE_CONTEXT_MAP:
-            case "org.apache.logging.log4j.spi.CopyOnWriteSortedArrayThreadContextMap":
-                return super.getThreadContextMapInstance();
+            case GARBAGE_FREE_CONTEXT_MAP:
+            case GARBAGE_FREE_CLASS_NAME:
+                return new GarbageFreeSortedArrayThreadContextMap();
             default:
                 try {
                     return LoaderUtil.newCheckedInstanceOf(threadContextMapClass, ThreadContextMap.class);
@@ -160,38 +144,6 @@ public class Log4jProvider extends Provider {
         }
         LOGGER.warn("Falling back to {}.", NoOpThreadContextMap.class.getName());
         return NoOpThreadContextMap.INSTANCE;
-    }
-
-    @Override
-    public @Nullable String getThreadContextMap() {
-        // Properties
-        final PropertiesUtil props = PropertiesUtil.getProperties();
-        if (props.getBooleanProperty(DISABLE_CONTEXT_MAP) || props.getBooleanProperty(DISABLE_THREAD_CONTEXT)) {
-            return NoOpThreadContextMap.class.getName();
-        }
-        String threadContextMapClass = props.getStringProperty(THREAD_CONTEXT_MAP_PROPERTY);
-        // Default based on properties
-        if (threadContextMapClass == null) {
-            if (props.getBooleanProperty(GC_FREE_THREAD_CONTEXT_PROPERTY)) {
-                threadContextMapClass = GARBAGE_FREE_CONTEXT_MAP;
-            } else if (Constants.ENABLE_THREADLOCALS) {
-                threadContextMapClass = COPY_ON_WRITE_CONTEXT_MAP;
-            } else {
-                threadContextMapClass = WEB_APP_CONTEXT_MAP;
-            }
-        }
-        switch (threadContextMapClass) {
-            case NO_OP_CONTEXT_MAP:
-                return NoOpThreadContextMap.class.getName();
-            case WEB_APP_CONTEXT_MAP:
-                return DefaultThreadContextMap.class.getName();
-            case GARBAGE_FREE_CONTEXT_MAP:
-                return GARBAGE_FREE_CLASS_NAME;
-            case COPY_ON_WRITE_CONTEXT_MAP:
-                return COPY_ON_WRITE_CLASS_NAME;
-            default:
-                return threadContextMapClass;
-        }
     }
 
     // Used in tests

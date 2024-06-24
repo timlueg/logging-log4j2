@@ -50,7 +50,7 @@ public class ThreadContextDataInjectorTest {
     @Parameters(name = "{0}")
     public static Collection<String[]> threadContextMapClassNames() {
         return asList(new String[][] {
-            {"org.apache.logging.log4j.spi.GarbageFreeSortedArrayThreadContextMap"},
+            {"org.apache.logging.log4j.core.context.internal.GarbageFreeSortedArrayThreadContextMap"},
             {"org.apache.logging.log4j.spi.DefaultThreadContextMap"}
         });
     }

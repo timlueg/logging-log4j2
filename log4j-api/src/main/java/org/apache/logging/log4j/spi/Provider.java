@@ -291,12 +291,8 @@ public class Provider {
      */
     public ThreadContextMap getThreadContextMapInstance() {
         final PropertiesUtil props = PropertiesUtil.getProperties();
-        if (props.getBooleanProperty(DISABLE_CONTEXT_MAP) || props.getBooleanProperty(DISABLE_THREAD_CONTEXT)) {
-            return NoOpThreadContextMap.INSTANCE;
-        }
-        final String threadContextMap = getThreadContextMap();
-        return "org.apache.logging.log4j.spi.GarbageFreeSortedArrayThreadContextMap".equals(threadContextMap)
-                ? new GarbageFreeSortedArrayThreadContextMap()
+        return props.getBooleanProperty(DISABLE_CONTEXT_MAP) || props.getBooleanProperty(DISABLE_THREAD_CONTEXT)
+                ? NoOpThreadContextMap.INSTANCE
                 : new DefaultThreadContextMap();
     }
 

@@ -92,7 +92,8 @@ public abstract class AbstractAsyncThreadContextTestBase {
 
     protected enum ContextImpl {
         WEBAPP("WebApp", "org.apache.logging.log4j.spi.DefaultThreadContextMap"),
-        GARBAGE_FREE("GarbageFree", "org.apache.logging.log4j.spi.GarbageFreeSortedArrayThreadContextMap");
+        GARBAGE_FREE(
+                "GarbageFree", "org.apache.logging.log4j.core.context.internal.GarbageFreeSortedArrayThreadContextMap");
 
         private final String threadContextMap;
         private final String implClass;
