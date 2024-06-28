@@ -558,11 +558,11 @@ public final class PropertiesUtil {
             }
         }
 
-        private synchronized void reload() {
+        private void reload() {
             literal.clear();
             tokenized.clear();
             try {
-                sourceReadLock.lock();
+                sourceWriteLock.lock();
                 // 1. Collects all property keys from enumerable sources.
                 final Set<String> keys = new HashSet<>();
                 sources.stream().map(PropertySource::getPropertyNames).forEach(keys::addAll);
@@ -588,7 +588,7 @@ public final class PropertiesUtil {
                     });
                 });
             } finally {
-                sourceReadLock.unlock();
+                sourceWriteLock.unlock();
             }
         }
 
