@@ -36,13 +36,16 @@ import java.util.ResourceBundle;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.status.StatusLogger;
+import org.apache.logging.log4j.util.PropertySource.Comparator;
 
 /**
  * <em>Consider this class private.</em>
@@ -144,9 +147,7 @@ public final class PropertiesUtil {
      * @since 2.19.0
      */
     public void addPropertySource(final PropertySource propertySource) {
-        if (environment != null) {
-            environment.addPropertySource(propertySource);
-        }
+        environment.addPropertySource(Objects.requireNonNull(propertySource));
     }
 
     /**
@@ -155,9 +156,7 @@ public final class PropertiesUtil {
      * @since 2.24.0
      */
     public void removePropertySource(final PropertySource propertySource) {
-        if (environment != null) {
-            environment.removePropertySource(propertySource);
-        }
+        environment.removePropertySource(Objects.requireNonNull(propertySource));
     }
 
     /**
@@ -500,7 +499,11 @@ public final class PropertiesUtil {
      */
     private static final class Environment {
 
-        private final Set<PropertySource> sources = new ConcurrentSkipListSet<>(new PropertySource.Comparator());
+        private final List<PropertySource> sources = new ArrayList<>();
+        private final ReadWriteLock sourceLock = new ReentrantReadWriteLock();
+        private final Lock sourceReadLock = sourceLock.readLock();
+        private final Lock sourceWriteLock = sourceLock.writeLock();
+
         /**
          * Maps a key to its value or the value of its normalization in the lowest priority source that contains it.
          */
@@ -529,45 +532,64 @@ public final class PropertiesUtil {
                             ServiceLoader.load(PropertySource.class, PropertiesUtil.class.getClassLoader()),
                             LOGGER)
                     .forEach(sources::add);
+            sources.sort(Comparator.INSTANCE);
 
             reload();
         }
 
         private void addPropertySource(final PropertySource propertySource) {
-            sources.add(propertySource);
+            try {
+                sourceWriteLock.lock();
+                if (!sources.contains(propertySource)) {
+                    sources.add(propertySource);
+                    sources.sort(Comparator.INSTANCE);
+                }
+            } finally {
+                sourceWriteLock.unlock();
+            }
         }
 
         private void removePropertySource(final PropertySource propertySource) {
-            sources.remove(propertySource);
+            try {
+                sourceWriteLock.lock();
+                sources.remove(propertySource);
+            } finally {
+                sourceWriteLock.unlock();
+            }
         }
 
         private synchronized void reload() {
             literal.clear();
             tokenized.clear();
-            // 1. Collects all property keys from enumerable sources.
-            final Set<String> keys = new HashSet<>();
-            sources.stream().map(PropertySource::getPropertyNames).forEach(keys::addAll);
-            // 2. Fills the property caches. Sources with higher priority values don't override the previous ones.
-            keys.stream().filter(Strings::isNotBlank).forEach(key -> {
-                final List<CharSequence> tokens = PropertySource.Util.tokenize(key);
-                final boolean hasTokens = !tokens.isEmpty();
-                sources.forEach(source -> {
-                    if (sourceContainsProperty(source, key)) {
-                        final String value = sourceGetProperty(source, key);
+            try {
+                sourceReadLock.lock();
+                // 1. Collects all property keys from enumerable sources.
+                final Set<String> keys = new HashSet<>();
+                sources.stream().map(PropertySource::getPropertyNames).forEach(keys::addAll);
+                // 2. Fills the property caches. Sources with higher priority values don't override the previous ones.
+                keys.stream().filter(Strings::isNotBlank).forEach(key -> {
+                    final List<CharSequence> tokens = PropertySource.Util.tokenize(key);
+                    final boolean hasTokens = !tokens.isEmpty();
+                    sources.forEach(source -> {
+                        if (sourceContainsProperty(source, key)) {
+                            final String value = sourceGetProperty(source, key);
+                            if (hasTokens) {
+                                tokenized.putIfAbsent(tokens, value);
+                            }
+                        }
                         if (hasTokens) {
-                            tokenized.putIfAbsent(tokens, value);
+                            final String normalKey = Objects.toString(source.getNormalForm(tokens), null);
+                            if (normalKey != null && sourceContainsProperty(source, normalKey)) {
+                                literal.putIfAbsent(key, sourceGetProperty(source, normalKey));
+                            } else if (sourceContainsProperty(source, key)) {
+                                literal.putIfAbsent(key, sourceGetProperty(source, key));
+                            }
                         }
-                    }
-                    if (hasTokens) {
-                        final String normalKey = Objects.toString(source.getNormalForm(tokens), null);
-                        if (normalKey != null && sourceContainsProperty(source, normalKey)) {
-                            literal.putIfAbsent(key, sourceGetProperty(source, normalKey));
-                        } else if (sourceContainsProperty(source, key)) {
-                            literal.putIfAbsent(key, sourceGetProperty(source, key));
-                        }
-                    }
+                    });
                 });
-            });
+            } finally {
+                sourceReadLock.unlock();
+            }
         }
 
         private String get(final String key) {
@@ -576,16 +598,21 @@ public final class PropertiesUtil {
             }
             final List<CharSequence> tokens = PropertySource.Util.tokenize(key);
             final boolean hasTokens = !tokens.isEmpty();
-            for (final PropertySource source : sources) {
-                if (hasTokens) {
-                    final String normalKey = Objects.toString(source.getNormalForm(tokens), null);
-                    if (normalKey != null && sourceContainsProperty(source, normalKey)) {
-                        return sourceGetProperty(source, normalKey);
+            try {
+                sourceReadLock.lock();
+                for (final PropertySource source : sources) {
+                    if (hasTokens) {
+                        final String normalKey = Objects.toString(source.getNormalForm(tokens), null);
+                        if (normalKey != null && sourceContainsProperty(source, normalKey)) {
+                            return sourceGetProperty(source, normalKey);
+                        }
+                    }
+                    if (sourceContainsProperty(source, key)) {
+                        return sourceGetProperty(source, key);
                     }
                 }
-                if (sourceContainsProperty(source, key)) {
-                    return sourceGetProperty(source, key);
-                }
+            } finally {
+                sourceReadLock.unlock();
             }
             return tokenized.get(tokens);
         }
@@ -610,13 +637,18 @@ public final class PropertiesUtil {
 
         private boolean containsKey(final String key) {
             final List<CharSequence> tokens = PropertySource.Util.tokenize(key);
-            return literal.containsKey(key)
-                    || tokenized.containsKey(tokens)
-                    || sources.stream().anyMatch(s -> {
-                        final CharSequence normalizedKey = s.getNormalForm(tokens);
-                        return sourceContainsProperty(s, key)
-                                || (normalizedKey != null && sourceContainsProperty(s, normalizedKey.toString()));
-                    });
+            try {
+                sourceReadLock.lock();
+                return literal.containsKey(key)
+                        || tokenized.containsKey(tokens)
+                        || sources.stream().anyMatch(s -> {
+                            final CharSequence normalizedKey = s.getNormalForm(tokens);
+                            return sourceContainsProperty(s, key)
+                                    || (normalizedKey != null && sourceContainsProperty(s, normalizedKey.toString()));
+                        });
+            } finally {
+                sourceReadLock.unlock();
+            }
         }
     }
 

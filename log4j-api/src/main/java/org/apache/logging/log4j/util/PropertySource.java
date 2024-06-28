@@ -100,13 +100,13 @@ public interface PropertySource {
     class Comparator implements java.util.Comparator<PropertySource>, Serializable {
         private static final long serialVersionUID = 1L;
 
+        static final Comparator INSTANCE = new Comparator();
+
         @Override
-        public int compare(final PropertySource left, final PropertySource right) {
-            Objects.requireNonNull(left);
-            Objects.requireNonNull(right);
-            final int result = Integer.compare(left.getPriority(), right.getPriority());
-            // Two property sources can have the same priority
-            return result != 0 || left.equals(right) ? result : left.hashCode() - right.hashCode();
+        public int compare(final PropertySource o1, final PropertySource o2) {
+            return Integer.compare(
+                    Objects.requireNonNull(o1).getPriority(),
+                    Objects.requireNonNull(o2).getPriority());
         }
     }
 
