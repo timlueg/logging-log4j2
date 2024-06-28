@@ -19,7 +19,7 @@
 
 == Using Log4j in Web Applications
 
-You must take particular care when using Log4j or any other logging framework within a Java EE web application. It's important for logging resources to be properly cleaned up (database connections closed, files closed, etc.) when the container shuts down or the web application is undeployed. Because of the nature of class loaders within web applications, Log4j resources cannot be cleaned up through normal means. Log4j must be "started" when the web application deploys and "shut down" when the web application undeploys. How this works varies depending on whether your application is a xref:#Servlet-3-0[Servlet 3.0 or newer] or xref:#Servlet-2-5[Servlet 2.5] web application.
+You must take particular care when using Log4j or any other logging framework within a Java EE web application. It's important for logging resources to be properly cleaned up (database connections closed, files closed, etc.) when the container shuts down or the web application is undeployed. Because of the nature of class loaders within web applications, Log4j resources cannot be cleaned up through normal means. Log4j must be "started" when the web application deploys and "shut down" when the web application undeploys. How this works varies depending on whether your application is a <<Servlet-3-0,Servlet 3.0 or newer>> or <<Servlet-2-5,Servlet 2.5>> web application.
 
 Due to the namespace change from `javax` to `jakarta`, you need to use `log4j-jakarta-web` instead of `log4j-web` for Servlet 5.0 or newer.
 
@@ -30,6 +30,7 @@ In either case, you'll need to add the `log4j-web` module to your deployment.
 To avoid problems, the Log4j shutdown hook will automatically be disabled when the log4j-web jar is included.
 ====
 
+[id=configuration]
 === Configuration
 
 Log4j allows the configuration file to be specified in web.xml using the `log4jConfiguration` context parameter. Log4j will search for configuration files by:
@@ -63,7 +64,7 @@ For performance reasons, containers often ignore certain JARs known not to conta
 
 ==== The Long Story
 
-The Log4j 2 Web JAR file is a web-fragment configured to order before any other web fragments in your application. It contains a `ServletContainerInitializer` (`Log4jServletContainerInitializer`) that the container automatically discovers and initializes. This adds the link:../javadoc/log4j-core/org/apache/logging/log4j/web/Log4jServletContextListener.html[Log4jServletContextListener] and `Log4jServletFilter` to the `ServletContext`. These classes properly initialize and deinitialize the Log4j configuration.
+The Log4j 2 Web JAR file is a web-fragment configured to order before any other web fragments in your application. It contains a `ServletContainerInitializer` (`Log4jServletContainerInitializer`) that the container automatically discovers and initializes. This adds the `Log4jServletContextListener` and `Log4jServletFilter` to the `ServletContext`. These classes properly initialize and deinitialize the Log4j configuration.
 
 For some users, automatically starting Log4j is problematic or undesirable. You can easily disable this feature using the `isLog4jAutoInitializationDisabled` context parameter. Simply add it to your deployment descriptor with the value "true" to disable auto-initialization. You _must_ define the context parameter in `web.xml`. If you set in programmatically, it will be too late for Log4j to detect the setting.
 
@@ -75,9 +76,9 @@ For some users, automatically starting Log4j is problematic or undesirable. You 
 </context-param>
 ----
 
-Once you disable auto-initialization, you must initialize Log4j as you would a link:#Servlet-2-5[Servlet 2.5 web application]. You must do so in a way that this initialization happens before any other application code (such as Spring Framework startup code) executes.
+Once you disable auto-initialization, you must initialize Log4j as you would a <<Servlet-2-5,Servlet 2.5 web application>>. You must do so in a way that this initialization happens before any other application code (such as Spring Framework startup code) executes.
 
-You can customize the behavior of the listener and filter using the `log4jContextName`, `log4jConfiguration`, and/or `isLog4jContextSelectorNamed` context parameters. Read more about this in the xref:#ContextParams[Context Parameters] section below. You _must not_ manually configure the `Log4jServletContextListener` or `Log4jServletFilter` in your deployment descriptor (`web.xml`) or in another initializer or listener in a Servlet 3.0 or newer application _unless you disable auto-initialization_ with `isLog4jAutoInitializationDisabled`. Doing so will result in startup errors and unspecified erroneous behavior.
+You can customize the behavior of the listener and filter using the `log4jContextName`, `log4jConfiguration`, and/or `isLog4jContextSelectorNamed` context parameters. Read more about this in the <<ContextParams,Context Parameters>> section below. You _must not_ manually configure the `Log4jServletContextListener` or `Log4jServletFilter` in your deployment descriptor (`web.xml`) or in another initializer or listener in a Servlet 3.0 or newer application _unless you disable auto-initialization_ with `isLog4jAutoInitializationDisabled`. Doing so will result in startup errors and unspecified erroneous behavior.
 
 [#Servlet-2-5]
 === Servlet 2.5 Web Applications
@@ -140,6 +141,7 @@ When specifying these context parameters, you must specify them in the deploymen
 </context-param>
 ----
 
+[#use-jndi-context-selector]
 ==== Use the JndiContextSelector
 
 [source,xml]
@@ -167,6 +169,7 @@ For security reasons, from Log4j 2.17.0, JNDI must be enabled by setting system 
 You may want to use information about the web application during configuration. For example, you could embed the web application's context path in the name of a Rolling File Appender. See WebLookup in Lookups for more information.
 
 === JavaServer Pages Logging
+
 You may use Log4j 2 within JSPs just as you would within any other Java code. Simply obtain a Logger and call its methods to log events. However, this requires you to use Java code within your JSPs, and some development teams rightly are not comfortable doing this. If you have a dedicated user interface development team that is not familiar with using Java, you may even have Java code disabled in your JSPs.
 
 For this reason, Log4j 2 provides a JSP Tag Library that enables you to log events without using any Java code. To read more about using this tag library, xref:log4j-taglib.adoc[read the Log4j Tag Library documentation].
